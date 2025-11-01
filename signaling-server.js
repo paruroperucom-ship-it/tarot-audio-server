@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
-
 const PORT = process.env.PORT || 10000;
+
 const wss = new WebSocket.Server({ port: PORT });
 const rooms = {};
 
@@ -11,7 +11,7 @@ wss.on('connection', ws => {
     if (!rooms[room]) rooms[room] = [];
     rooms[room].push(ws);
 
-    // reenviar mensajes a todos los clientes en la sala (menos al emisor)
+    // retransmite los mensajes a los demás clientes en la misma sala
     rooms[room].forEach(client => {
       if (client !== ws && client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify(data));
