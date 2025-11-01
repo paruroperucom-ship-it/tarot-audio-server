@@ -1,4 +1,4 @@
-// signaling-server.js — versión Render estable y sincronizada
+// signaling-server.js — modo espejo estable para Render
 import express from "express";
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
@@ -7,10 +7,10 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-app.get("/", (_, res) => res.send("🟢 Servidor WebSocket activo y sincronizado con Render."));
+app.get("/", (_, res) => res.send("🟢 Servidor WebSocket en modo espejo activo."));
 
 const PORT = process.env.PORT || 10000;
-const rooms = {};
+const globalRooms = {}; // <- global persistente
 
 wss.on("connection", (ws) => {
   console.log("📡 Nuevo cliente conectado");
@@ -29,30 +29,29 @@ wss.on("connection", (ws) => {
     const { type, room, offer, answer, candidate, leave } = data;
     if (!room) return;
 
-    // Unirse a sala
+    // Unirse a una sala
     if (type === "join") {
-      if (!rooms[room]) rooms[room] = [];
-      if (!rooms[room].includes(ws)) {
-        rooms[room].push(ws);
-        console.log(`✅ Cliente añadido a sala ${room} (${rooms[room].length} total)`);
+      if (!globalRooms[room]) globalRooms[room] = [];
+      if (!globalRooms[room].includes(ws)) {
+        globalRooms[room].push(ws);
+        console.log(`✅ Cliente unido a sala ${room}: ${globalRooms[room].length} conectado(s).`);
       }
 
-      // Enviar confirmación al cliente
-      ws.send(JSON.stringify({ type: "joined", room, count: rooms[room].length }));
+      ws.send(JSON.stringify({ type: "joined", room, total: globalRooms[room].length }));
 
-      // Si hay dos usuarios, asignar roles
-      if (rooms[room].length === 2) {
-        const [caller, callee] = rooms[room];
+      // Asignar roles automáticamente
+      if (globalRooms[room].length === 2) {
+        const [caller, callee] = globalRooms[room];
         caller.send(JSON.stringify({ type: "role", role: "caller" }));
         callee.send(JSON.stringify({ type: "role", role: "callee" }));
-        console.log(`🎭 Roles asignados en sala ${room}`);
+        console.log(`🎭 Roles asignados para sala ${room}`);
       }
       return;
     }
 
-    // Reenviar oferta, respuesta o ICE
+    // Transmitir señales a todos menos al remitente
     if (offer || answer || candidate) {
-      rooms[room]?.forEach((client) => {
+      (globalRooms[room] || []).forEach((client) => {
         if (client !== ws && client.readyState === 1) {
           client.send(JSON.stringify(data));
         }
@@ -60,28 +59,27 @@ wss.on("connection", (ws) => {
       return;
     }
 
-    // Cuando alguien se desconecta
+    // Usuario salió
     if (leave) {
-      console.log(`🚪 Cliente salió de sala ${room}`);
-      rooms[room] = rooms[room].filter((c) => c !== ws);
-      rooms[room]?.forEach((client) => {
-        if (client.readyState === 1)
-          client.send(JSON.stringify({ leave: true }));
+      console.log(`🚪 Usuario salió de sala ${room}`);
+      globalRooms[room] = (globalRooms[room] || []).filter((c) => c !== ws);
+      (globalRooms[room] || []).forEach((client) => {
+        if (client.readyState === 1) client.send(JSON.stringify({ leave: true }));
       });
       return;
     }
   });
 
   ws.on("close", () => {
-    for (const room in rooms) {
-      rooms[room] = rooms[room].filter((c) => c !== ws);
-      if (!rooms[room].length) delete rooms[room];
+    for (const room in globalRooms) {
+      globalRooms[room] = globalRooms[room].filter((c) => c !== ws);
+      if (!globalRooms[room].length) delete globalRooms[room];
     }
     console.log("❎ Cliente desconectado");
   });
 });
 
-// Mantener Render activo
+// Keep-alive: Render no dormirá la instancia
 setInterval(() => {
   wss.clients.forEach((ws) => {
     if (!ws.isAlive) return ws.terminate();
@@ -91,5 +89,5 @@ setInterval(() => {
 }, 30000);
 
 server.listen(PORT, () =>
-  console.log(`✅ Servidor WebSocket estable ejecutándose en puerto ${PORT}`)
+  console.log(`✅ Servidor WebSocket espejo ejecutándose en puerto ${PORT}`)
 );
