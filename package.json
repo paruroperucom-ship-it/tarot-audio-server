@@ -1,17 +1,13 @@
 {
   "name": "tarot-audio-server",
   "version": "1.0.0",
-  "description": "Servidor WebSocket y generador TURN efímero con Twilio para sesiones de audio.",
+  "description": "Servidor de señalización WebRTC para Tarot de Carlos",
   "main": "signaling-server.js",
   "type": "module",
   "scripts": {
-    "start": "node signaling-server.js",
-    "turn": "node server.js"
+    "start": "node signaling-server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "twilio": "^4.19.0",
-    "cors": "^2.8.5",
     "ws": "^8.13.0"
   }
 }
