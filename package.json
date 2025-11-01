@@ -1,14 +1,8 @@
 {
   "name": "tarot-audio-server",
-  "version": "1.1.0",
-  "description": "Servidor WebSocket WebRTC para Tarot de Carlos",
-  "main": "signaling-server.js",
+  "version": "1.1.1",
   "type": "module",
-  "scripts": {
-    "start": "node signaling-server.js"
-  },
-  "dependencies": {
-    "express": "^4.19.2",
-    "ws": "^8.13.0"
-  }
+  "main": "signaling-server.js",
+  "scripts": { "start": "node signaling-server.js" },
+  "dependencies": { "express": "^4.19.2", "ws": "^8.13.0" }
 }
