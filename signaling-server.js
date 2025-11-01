@@ -1,6 +1,4 @@
-// signaling-server.js
-// Compatible con Render y servicios WebSocket + HTTP
-
+// signaling-server.js — versión sincronizada
 import express from "express";
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
@@ -10,7 +8,7 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.get("/", (req, res) => {
-  res.send("🟢 Servidor WebSocket de Tarot de Carlos activo");
+  res.send("🟢 Servidor WebSocket activo y sincronizado");
 });
 
 const PORT = process.env.PORT || 10000;
@@ -24,7 +22,7 @@ wss.on("connection", (ws) => {
     try {
       data = JSON.parse(message);
     } catch {
-      return console.error("❌ Mensaje inválido:", message);
+      return console.error("❌ JSON inválido:", message);
     }
 
     const room = data.room;
@@ -36,22 +34,20 @@ wss.on("connection", (ws) => {
 
     console.log(`📦 Sala ${room}: ${rooms[room].length} usuarios`);
 
-    // Asignar roles y avisar
+    // Si ambos usuarios están en la sala, sincronizar roles
     if (data.join && rooms[room].length === 2) {
-      console.log(`🚀 Ambos usuarios listos en sala ${room}`);
-      rooms[room].forEach((client, i) => {
-        if (client.readyState === 1) {
-          client.send(JSON.stringify({
-            type: "ready",
-            role: i === 0 ? "caller" : "callee"
-          }));
-        }
-      });
+      console.log(`🚀 Sala ${room} lista para conexión`);
+      const [caller, callee] = rooms[room];
+
+      if (caller.readyState === 1)
+        caller.send(JSON.stringify({ type: "role", role: "caller" }));
+      if (callee.readyState === 1)
+        callee.send(JSON.stringify({ type: "role", role: "callee" }));
       return;
     }
 
     // Reenviar señal (offer, answer, candidate)
-    if (data.offer || data.answer || data.candidate) {
+    if (["offer", "answer", "candidate"].some(k => data[k])) {
       rooms[room].forEach((client) => {
         if (client !== ws && client.readyState === 1) {
           client.send(JSON.stringify(data));
@@ -59,12 +55,13 @@ wss.on("connection", (ws) => {
       });
     }
 
-    // Desconexión
+    // Usuario sale
     if (data.leave) {
       console.log(`🚪 Usuario salió de sala ${room}`);
       rooms[room] = rooms[room].filter((c) => c !== ws);
       rooms[room].forEach((client) => {
-        if (client.readyState === 1) client.send(JSON.stringify({ leave: true }));
+        if (client.readyState === 1)
+          client.send(JSON.stringify({ leave: true }));
       });
     }
   });
@@ -79,5 +76,5 @@ wss.on("connection", (ws) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`✅ Servidor WebSocket funcionando en puerto ${PORT}`);
+  console.log(`✅ Servidor WebSocket sincronizado en puerto ${PORT}`);
 });
